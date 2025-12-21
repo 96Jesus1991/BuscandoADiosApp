@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Buscando a Dios</string>
+    <string name="splash_subtitle">Comunidad cristiana en España</string>
+    <string name="no_internet_title">Sin conexión a Internet</string>
+    <string name="no_internet_message">Comprueba tu conexión WiFi o datos móviles e inténtalo de nuevo.</string>
+    <string name="btn_retry">Reintentar</string>
+    <string name="exit_confirm_title">Salir</string>
+    <string name="exit_confirm_message">¿Deseas salir de Buscando a Dios?</string>
+    <string name="yes">Sí</string>
+    <string name="no">No</string>
+</resources>

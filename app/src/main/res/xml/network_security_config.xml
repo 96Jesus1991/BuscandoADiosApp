@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Permitir solo HTTPS (más seguro) -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    
+    <!-- Dominio principal -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">buscandoadios-espana.com</domain>
+    </domain-config>
+</network-security-config>

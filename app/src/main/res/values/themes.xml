@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Tema principal de la app -->
+    <style name="Theme.BuscandoADios" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Colores primarios -->
+        <item name="colorPrimary">@color/dorado</item>
+        <item name="colorPrimaryVariant">@color/dorado_oscuro</item>
+        <item name="colorOnPrimary">@color/white</item>
+        
+        <!-- Colores secundarios -->
+        <item name="colorSecondary">@color/dorado</item>
+        <item name="colorSecondaryVariant">@color/dorado_oscuro</item>
+        <item name="colorOnSecondary">@color/white</item>
+        
+        <!-- Barra de estado -->
+        <item name="android:statusBarColor">@color/dorado_oscuro</item>
+        <item name="android:navigationBarColor">@color/dorado_oscuro</item>
+        
+        <!-- Fondo -->
+        <item name="android:windowBackground">@color/crema</item>
+    </style>
+
+    <!-- Tema para el Splash Screen -->
+    <style name="Theme.BuscandoADios.Splash" parent="Theme.BuscandoADios">
+        <item name="android:windowBackground">@color/crema</item>
+        <item name="android:statusBarColor">@color/crema</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+</resources>

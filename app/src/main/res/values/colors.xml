@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Colores principales de Buscando a Dios -->
+    <color name="dorado">#C89B3C</color>
+    <color name="dorado_oscuro">#A67C00</color>
+    <color name="crema">#FFF8E1</color>
+    <color name="crema_claro">#FFFDF5</color>
+    
+    <!-- Colores de texto -->
+    <color name="texto_oscuro">#3E2723</color>
+    <color name="texto_gris">#757575</color>
+    
+    <!-- Colores del sistema -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    
+    <!-- Colores para la barra de estado -->
+    <color name="status_bar">#B8860B</color>
+</resources>
