@@ -1,36 +1,114 @@
+# ============================================================
+# WORKFLOW: Build APK - Buscando a Dios App
+# Versión corregida para evitar errores de CRLF y gradlew
+# ============================================================
+
 name: Build APK
 
 on:
   push:
-    branches: [ "main" ]
-  workflow_dispatch:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:  # Permite ejecutar manualmente
+
+# Forzar bash en todos los comandos run
+defaults:
+  run:
+    shell: bash
 
 jobs:
   build:
+    name: Build Debug APK
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Checkout repository
+      # ========== PASO 1: Checkout ==========
+      - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      # ========== PASO 2: Setup JDK 17 ==========
+      - name: ☕ Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
+          distribution: 'temurin'
           java-version: '17'
-          cache: gradle
 
-      - name: Set up Android SDK
+      # ========== PASO 3: Setup Android SDK ==========
+      - name: 📱 Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Grant execute permission for gradlew
+      # ========== PASO 4: Arreglar gradlew (CRLF → LF) ==========
+      - name: 🔧 Fix gradlew line endings (CRLF to LF)
+        run: |
+          echo "=== Verificando gradlew ==="
+          file gradlew || echo "Comando file no disponible"
+          echo "=== Convirtiendo CRLF a LF ==="
+          sed -i 's/\r$//' gradlew
+          echo "=== Verificando después de conversión ==="
+          head -1 gradlew | cat -A
+          echo "=== Hecho ==="
+
+      # ========== PASO 5: Dar permisos de ejecución ==========
+      - name: 🔑 Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build Debug APK
-        run: bash ./gradlew assembleDebug
+      # ========== PASO 6: Verificar/Descargar Gradle Wrapper ==========
+      - name: 📦 Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.2'
 
-      - name: Upload APK
+      # ========== PASO 7: Verificar estructura del proyecto ==========
+      - name: 🔍 Verify project structure
+        run: |
+          echo "=== Estructura del proyecto ==="
+          ls -la
+          echo ""
+          echo "=== Contenido de app/ ==="
+          ls -la app/ || echo "Carpeta app/ no encontrada"
+          echo ""
+          echo "=== Gradle wrapper ==="
+          ls -la gradle/wrapper/ || echo "Gradle wrapper no encontrado"
+          echo ""
+          echo "=== Tamaño de gradle-wrapper.jar ==="
+          ls -la gradle/wrapper/gradle-wrapper.jar 2>/dev/null || echo "JAR no existe"
+
+      # ========== PASO 8: Build con Gradle (usando wrapper del sistema) ==========
+      - name: 🏗️ Build Debug APK
+        run: |
+          echo "=== Iniciando build ==="
+          gradle assembleDebug --no-daemon --stacktrace
+        env:
+          GRADLE_OPTS: "-Xmx2048m -Dfile.encoding=UTF-8"
+
+      # ========== PASO 9: Listar APKs generadas ==========
+      - name: 📋 List generated APKs
+        run: |
+          echo "=== APKs generadas ==="
+          find . -name "*.apk" -type f 2>/dev/null || echo "No se encontraron APKs"
+          echo ""
+          echo "=== Contenido de outputs ==="
+          ls -laR app/build/outputs/apk/ 2>/dev/null || echo "Directorio no existe"
+
+      # ========== PASO 10: Subir APK como artifact ==========
+      - name: 📤 Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: BuscandoADios-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      # ========== PASO 11: Resumen del build ==========
+      - name: ✅ Build Summary
+        if: success()
+        run: |
+          echo "=========================================="
+          echo "✅ BUILD EXITOSO"
+          echo "=========================================="
+          echo "APK generada en: app/build/outputs/apk/debug/app-debug.apk"
+          APK_SIZE=$(ls -lh app/build/outputs/apk/debug/app-debug.apk | awk '{print $5}')
+          echo "Tamaño del APK: $APK_SIZE"
+          echo "=========================================="
+
