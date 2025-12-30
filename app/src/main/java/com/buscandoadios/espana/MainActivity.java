@@ -3,9 +3,13 @@ package com.buscandoadios.espana;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.DownloadManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -19,6 +23,8 @@ import android.view.View;
 import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
 import android.webkit.GeolocationPermissions;
+import android.webkit.MimeTypeMap;
+import android.webkit.URLUtil;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
@@ -66,6 +72,14 @@ public class MainActivity extends AppCompatActivity {
     private String cameraPhotoPath;
     private static final int FILE_CHOOSER_REQUEST = 1;
     private static final int PERMISSION_REQUEST = 2;
+    private static final int STORAGE_PERMISSION_REQUEST = 3;
+
+    // Para descargas
+    private long currentDownloadId = -1;
+    private BroadcastReceiver downloadReceiver;
+    private String pendingDownloadUrl;
+    private String pendingDownloadMimeType;
+    private String pendingDownloadFileName;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,6 +103,9 @@ public class MainActivity extends AppCompatActivity {
         swipeRefresh.setOnRefreshListener(() -> {
             webView.reload();
         });
+
+        // Configurar receptor de descargas completadas
+        setupDownloadReceiver();
 
         // Configurar WebView
         setupWebView();
@@ -221,17 +238,158 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Habilitar descargas
+        // =============================================
+        // DESCARGAS - USANDO DOWNLOADMANAGER
+        // =============================================
         webView.setDownloadListener(new DownloadListener() {
             @Override
             public void onDownloadStart(String url, String userAgent, String contentDisposition,
                                         String mimeType, long contentLength) {
-                // Abrir descarga en navegador externo
-                Intent intent = new Intent(Intent.ACTION_VIEW);
-                intent.setData(Uri.parse(url));
-                startActivity(intent);
+                
+                // Obtener nombre del archivo
+                String fileName = URLUtil.guessFileName(url, contentDisposition, mimeType);
+                
+                // Guardar para usar después de verificar permisos
+                pendingDownloadUrl = url;
+                pendingDownloadMimeType = mimeType;
+                pendingDownloadFileName = fileName;
+                
+                // Verificar permisos y descargar
+                if (checkStoragePermission()) {
+                    startDownload(url, fileName, mimeType, userAgent);
+                }
             }
         });
+    }
+
+    // =============================================
+    // MÉTODOS PARA DESCARGAS
+    // =============================================
+
+    /**
+     * Verifica si tiene permiso de almacenamiento
+     */
+    private boolean checkStoragePermission() {
+        // Android 10+ no necesita permiso para descargar a Downloads
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return true;
+        }
+        
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    STORAGE_PERMISSION_REQUEST);
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Inicia la descarga usando DownloadManager
+     */
+    private void startDownload(String url, String fileName, String mimeType, String userAgent) {
+        try {
+            // Crear request de descarga
+            DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+            
+            // Configurar notificación
+            request.setTitle(fileName);
+            request.setDescription("Descargando archivo...");
+            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+            
+            // Destino: carpeta Descargas pública
+            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
+            
+            // Permitir en datos móviles y roaming
+            request.setAllowedOverMetered(true);
+            request.setAllowedOverRoaming(true);
+            
+            // Headers
+            if (userAgent != null) {
+                request.addRequestHeader("User-Agent", userAgent);
+            }
+            
+            // Cookies del WebView
+            String cookies = CookieManager.getInstance().getCookie(url);
+            if (cookies != null) {
+                request.addRequestHeader("Cookie", cookies);
+            }
+            
+            // MIME type
+            if (mimeType != null && !mimeType.isEmpty()) {
+                request.setMimeType(mimeType);
+            } else {
+                // Intentar detectar por extensión
+                String extension = MimeTypeMap.getFileExtensionFromUrl(url);
+                if (extension != null) {
+                    String detectedMime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
+                    if (detectedMime != null) {
+                        request.setMimeType(detectedMime);
+                    }
+                }
+            }
+            
+            // Obtener DownloadManager e iniciar descarga
+            DownloadManager downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+            if (downloadManager != null) {
+                currentDownloadId = downloadManager.enqueue(request);
+                Toast.makeText(this, "📥 Descargando: " + fileName, Toast.LENGTH_SHORT).show();
+            }
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error al iniciar descarga: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            
+            // Fallback: abrir en navegador
+            try {
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                startActivity(intent);
+            } catch (Exception ex) {
+                Toast.makeText(this, "No se puede descargar el archivo", Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    /**
+     * Configura el receptor para saber cuando termina la descarga
+     */
+    private void setupDownloadReceiver() {
+        downloadReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1);
+                
+                if (id == currentDownloadId) {
+                    DownloadManager downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+                    if (downloadManager != null) {
+                        DownloadManager.Query query = new DownloadManager.Query();
+                        query.setFilterById(id);
+                        Cursor cursor = downloadManager.query(query);
+                        
+                        if (cursor != null && cursor.moveToFirst()) {
+                            int statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
+                            int status = cursor.getInt(statusIndex);
+                            
+                            if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                                Toast.makeText(MainActivity.this, "✅ Descarga completada", Toast.LENGTH_SHORT).show();
+                            } else if (status == DownloadManager.STATUS_FAILED) {
+                                Toast.makeText(MainActivity.this, "❌ Error en la descarga", Toast.LENGTH_SHORT).show();
+                            }
+                            cursor.close();
+                        }
+                    }
+                }
+            }
+        };
+        
+        // Registrar el receptor
+        IntentFilter filter = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(downloadReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(downloadReceiver, filter);
+        }
     }
 
     private void loadWebsite() {
@@ -352,11 +510,26 @@ public class MainActivity extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        
         if (requestCode == PERMISSION_REQUEST) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 openFileChooser();
             } else {
                 Toast.makeText(this, "Se necesitan permisos para subir fotos", Toast.LENGTH_SHORT).show();
+            }
+        }
+        
+        // Permiso de almacenamiento para descargas
+        if (requestCode == STORAGE_PERMISSION_REQUEST) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Reintentar la descarga pendiente
+                if (pendingDownloadUrl != null) {
+                    startDownload(pendingDownloadUrl, pendingDownloadFileName, 
+                                  pendingDownloadMimeType, webView.getSettings().getUserAgentString());
+                    pendingDownloadUrl = null;
+                }
+            } else {
+                Toast.makeText(this, "Se necesitan permisos para descargar archivos", Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -409,9 +582,19 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        // Desregistrar receptor de descargas
+        if (downloadReceiver != null) {
+            try {
+                unregisterReceiver(downloadReceiver);
+            } catch (Exception e) {
+                // Ignorar si no estaba registrado
+            }
+        }
+        
         if (webView != null) {
             webView.destroy();
         }
         super.onDestroy();
     }
 }
+
