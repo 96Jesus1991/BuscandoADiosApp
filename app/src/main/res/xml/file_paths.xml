@@ -1,6 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Ubicación: app/src/main/res/xml/file_paths.xml
+    Usado por FileProvider para compartir archivos
+-->
 <paths>
-    <external-files-path name="my_images" path="Pictures" />
-    <external-path name="external" path="." />
-    <cache-path name="cache" path="." />
+    <!-- Para fotos de cámara -->
+    <external-files-path
+        name="external_files"
+        path="Pictures/" />
+    
+    <!-- Para descargas -->
+    <external-path
+        name="downloads"
+        path="Download/" />
+    
+    <!-- Directorio externo general -->
+    <external-path
+        name="external"
+        path="." />
+    
+    <!-- Caché externa -->
+    <external-cache-path
+        name="external_cache"
+        path="." />
+    
+    <!-- Archivos internos -->
+    <files-path
+        name="internal_files"
+        path="." />
+    
+    <!-- Caché interna -->
+    <cache-path
+        name="cache"
+        path="." />
 </paths>
