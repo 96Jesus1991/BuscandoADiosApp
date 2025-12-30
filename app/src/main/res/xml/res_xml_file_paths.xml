@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+=========================================================
+FILE PATHS - Para FileProvider
+=========================================================
+Ubicación: res/xml/file_paths.xml
+=========================================================
+-->
+<paths>
+    <!-- Directorio de descargas públicas -->
+    <external-path
+        name="downloads"
+        path="Download/" />
+    
+    <!-- Directorio de descargas de la app -->
+    <external-files-path
+        name="external_files"
+        path="." />
+    
+    <!-- Directorio de caché externa -->
+    <external-cache-path
+        name="external_cache"
+        path="." />
+    
+    <!-- Directorio interno de la app -->
+    <files-path
+        name="internal_files"
+        path="." />
+    
+    <!-- Directorio de caché interna -->
+    <cache-path
+        name="cache"
+        path="." />
+    
+    <!-- Root del almacenamiento externo -->
+    <external-path
+        name="external"
+        path="." />
+</paths>
