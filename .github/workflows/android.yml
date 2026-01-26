@@ -1,114 +1,88 @@
 # ============================================================
-# WORKFLOW: Build APK - Buscando a Dios App
-# Versión corregida para evitar errores de CRLF y gradlew
+# WORKFLOW: Build Release AAB - Buscando a Dios App
 # ============================================================
 
-name: Build APK
+name: Build Release AAB
 
 on:
   push:
     branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
-  workflow_dispatch:  # Permite ejecutar manualmente
+  workflow_dispatch:
 
-# Forzar bash en todos los comandos run
 defaults:
   run:
     shell: bash
 
 jobs:
   build:
-    name: Build Debug APK
+    name: Build Release AAB
     runs-on: ubuntu-latest
-    
+
     steps:
       # ========== PASO 1: Checkout ==========
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
-      # ========== PASO 2: Setup JDK 17 ==========
+      # ========== PASO 2: Setup JDK ==========
       - name: ☕ Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
 
-      # ========== PASO 3: Setup Android SDK ==========
+      # ========== PASO 3: Android SDK ==========
       - name: 📱 Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      # ========== PASO 4: Arreglar gradlew (CRLF → LF) ==========
-      - name: 🔧 Fix gradlew line endings (CRLF to LF)
+      # ========== PASO 4: Fix gradlew ==========
+      - name: 🔧 Fix gradlew line endings
         run: |
-          echo "=== Verificando gradlew ==="
-          file gradlew || echo "Comando file no disponible"
-          echo "=== Convirtiendo CRLF a LF ==="
           sed -i 's/\r$//' gradlew
-          echo "=== Verificando después de conversión ==="
-          head -1 gradlew | cat -A
-          echo "=== Hecho ==="
+          chmod +x gradlew
 
-      # ========== PASO 5: Dar permisos de ejecución ==========
-      - name: 🔑 Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      # ========== PASO 6: Verificar/Descargar Gradle Wrapper ==========
+      # ========== PASO 5: Setup Gradle ==========
       - name: 📦 Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.2'
 
-      # ========== PASO 7: Verificar estructura del proyecto ==========
+      # ========== PASO 6: Verify structure ==========
       - name: 🔍 Verify project structure
         run: |
-          echo "=== Estructura del proyecto ==="
           ls -la
-          echo ""
-          echo "=== Contenido de app/ ==="
-          ls -la app/ || echo "Carpeta app/ no encontrada"
-          echo ""
-          echo "=== Gradle wrapper ==="
-          ls -la gradle/wrapper/ || echo "Gradle wrapper no encontrado"
-          echo ""
-          echo "=== Tamaño de gradle-wrapper.jar ==="
-          ls -la gradle/wrapper/gradle-wrapper.jar 2>/dev/null || echo "JAR no existe"
+          ls -la app || true
 
-      # ========== PASO 8: Build con Gradle (usando wrapper del sistema) ==========
-      - name: 🏗️ Build Debug APK
+      # ========== PASO 7: Build Release AAB ==========
+      - name: 🏗️ Build Release AAB
         run: |
-          echo "=== Iniciando build ==="
-          gradle assembleDebug --no-daemon --stacktrace
+          gradle bundleRelease --no-daemon --stacktrace
         env:
           GRADLE_OPTS: "-Xmx2048m -Dfile.encoding=UTF-8"
 
-      # ========== PASO 9: Listar APKs generadas ==========
-      - name: 📋 List generated APKs
+      # ========== PASO 8: List AAB ==========
+      - name: 📋 List generated AAB
         run: |
-          echo "=== APKs generadas ==="
-          find . -name "*.apk" -type f 2>/dev/null || echo "No se encontraron APKs"
-          echo ""
-          echo "=== Contenido de outputs ==="
-          ls -laR app/build/outputs/apk/ 2>/dev/null || echo "Directorio no existe"
+          find app/build/outputs/bundle -name "*.aab" -type f || echo "No AAB found"
 
-      # ========== PASO 10: Subir APK como artifact ==========
-      - name: 📤 Upload Debug APK
+      # ========== PASO 9: Upload AAB ==========
+      - name: 📤 Upload Release AAB
         uses: actions/upload-artifact@v4
         with:
-          name: BuscandoADios-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: BuscandoADios-release-aab
+          path: app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
           retention-days: 30
 
-      # ========== PASO 11: Resumen del build ==========
+      # ========== PASO 10: Summary ==========
       - name: ✅ Build Summary
         if: success()
         run: |
           echo "=========================================="
           echo "✅ BUILD EXITOSO"
+          ls -lh app/build/outputs/bundle/release/*.aab
           echo "=========================================="
-          echo "APK generada en: app/build/outputs/apk/debug/app-debug.apk"
-          APK_SIZE=$(ls -lh app/build/outputs/apk/debug/app-debug.apk | awk '{print $5}')
-          echo "Tamaño del APK: $APK_SIZE"
-          echo "=========================================="
+
+
 
